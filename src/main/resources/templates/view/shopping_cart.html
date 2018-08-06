@@ -1,0 +1,217 @@
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>购物车</title>
+    <link rel="stylesheet" href="http://pc9t1l6wc.bkt.clouddn.com/css/bootstrap.min.css">
+    <link rel="stylesheet" href="http://pc9t1l6wc.bkt.clouddn.com/css/font-awesome.min.css">
+    <link rel="stylesheet" href="http://pc9t1l6wc.bkt.clouddn.com/css/ionicons.min.css">
+
+</head>
+<body>
+
+<div id="shopping_cart">
+    <div class="container">
+        <div class="row" style="margin: 30px">
+            <a href="#" class="btn btn-default" onclick="javascrip :history.back(-1);" style="color: #111112">返回</a>
+        </div>
+
+        <div>
+            <table class="table">
+                <thead>
+                <tr>
+                    <th>商品</th>
+                    <th>价格(元)</th>
+                    <th>数量</th>
+                    <th>总价(元)</th>
+                    <th>操作</th>
+                </tr>
+                </thead>
+                <tbody v-if="shoppingCartString==null || shoppingCartString == '' ">
+                    <tr>
+                        <th>暂无数据</th>
+                    </tr>
+                </tbody>
+                <tbody v-else>
+                <tr v-for="goods in goodsList">
+                    <td style="width: 300px">
+                        <div class="blog-thumb" style="width: 200px">
+                            <a ><img v-bind:src="imageUrl + goods.imgUrl" class="img-responsive" style="height: 200px; width: 100%" ></a>
+                            <div class="row" style="margin: 5px">
+                                    <p>{{goods.name}}</p>
+                            </div>
+                        </div>
+                    </td>
+                    <td>{{priceFormate(goods.price)}}</td>
+                    <td>
+                        <a v-if="goodsCount(goods.id) != 0" v-on:click="reduceOne(goods.id)"><i class="fa fa-minus-square-o" aria-hidden="true"></i></a>
+                        <a v-else><i class="fa fa-minus-square-o" aria-hidden="true"></i></a>
+
+                        {{goodsCount(goods.id)}}
+                        <a v-on:click="addOne(goods.id)"><i class="fa fa-plus-square-o" aria-hidden="true"></i></a>
+                    </td>
+                    <td>{{priceFormate(goods.price) * goodsCount(goods.id)}}</td>
+                    <td>
+                        <a class="btn btn-default" v-on:click="deleteGoods(goods.id)">删除</a>
+                    </td>
+                </tr>
+
+                </tbody>
+            </table>
+        </div>
+
+        <div class="row" style="margin-bottom: 50px" v-if="shoppingCartString!=null && shoppingCartString != '' ">
+            <div class="col-xs-10">
+                <div class="row">
+                    <span>总价：{{priceFormate(totalMoney)}}元，共 {{goodsTotalCount}} 件</span>
+                </div>
+            </div>
+            <div class="col-xs-2">
+                <div style="margin-left: 5px">
+                    <a v-on:click="emptyGoods">清空购物车</a>
+                    <a class="btn btn-default">结算</a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+
+</div><!-- /.modal-content -->
+</div><!-- /.modal -->
+</div>
+
+</body>
+<script src="http://pc9t1l6wc.bkt.clouddn.com/js/jquery.js"></script>
+<script src="http://pc9t1l6wc.bkt.clouddn.com/js/bootstrap.min.js"></script>
+<script src="http://pc9t1l6wc.bkt.clouddn.com/js/vue.js"></script>
+
+<script>
+    var vm = new Vue({
+        el : '#shopping_cart',
+        data : {
+            imageUrl : "http://pc9t1l6wc.bkt.clouddn.com",
+            goodsList : [],
+            shoppingCartString : undefined,
+            totalMoney : 0,
+            goodsTotalCount : 0,
+        },
+        methods : {
+            getGoodsList : getGoodsList,
+            getShoppingCartString : getShoppingCartString,
+            goodsCount : goodsCount,
+            priceFormate : function (price) {
+                return price/100;
+            },
+            addOne : function (goodsId) {
+                var ids = vm.shoppingCartString.split(",");
+                ids.push(goodsId);
+                vm.shoppingCartString = ids.join(",");
+                vm.goodsTotalCount = ids.length;
+
+                insertShoppingCartString(ids.join(","));
+            },
+            reduceOne : function (goodsId) {
+                var ids = vm.shoppingCartString.split(",");
+
+                for(var i=0;i<ids.length;i++){
+                    if (parseInt(ids[i]) == goodsId){
+                        ids.splice(i, 1);
+                        break;
+                    }
+                }
+                vm.shoppingCartString = ids.join(",");
+                vm.goodsTotalCount = ids.length;
+
+                insertShoppingCartString(ids.join(","));
+
+            },
+            deleteGoods : function (goodsId) {
+                var ids = vm.shoppingCartString.split(",");
+                for(var i=0;i<ids.length;i++){
+                    if (parseInt(ids[i]) == goodsId){
+                        ids.splice(i, 1);
+                        i--;
+                    }
+                }
+                vm.shoppingCartString = ids.join(",");
+                vm.goodsTotalCount = ids.length;
+
+                insertShoppingCartString(ids.join(","));
+            },
+            emptyGoods : function () {
+                vm.shoppingCartString = "";
+                vm.goodsTotalCount = 0;
+                insertShoppingCartString(vm.shoppingCartString);
+            }
+        },
+        computed : {
+
+        },
+        created : init()
+
+    })
+    function init() {
+        getGoodsList();
+        getShoppingCartString();
+    }
+
+    function getGoodsList() {
+        $.ajax({
+            type : "POST",
+            url : "/shop/goods/shoppingCartList",
+            success : function (result) {
+                vm.goodsList = result.value;
+                var money = 0;
+                result.value.forEach(function (value) {
+                    var count = goodsCount(value.id);
+                    money = money + value.price * count;
+                })
+                vm.totalMoney = money;
+            }
+        })
+    }
+
+    function getShoppingCartString() {
+        $.ajax({
+            type : "POST",
+            url : "/shop/goods/shoppingCartString",
+            success : function (result) {
+                vm.shoppingCartString = result.value;
+                vm.goodsTotalCount = result.value.split(",").length;
+            }
+        })
+    }
+
+    function goodsCount(goodsId) {
+        var stringList = vm.shoppingCartString.split(",");
+        var count = 0;
+        stringList.forEach(function (value, index) {
+            if (value == goodsId){
+                count ++;
+            }
+        })
+        return count;
+    }
+
+    function insertShoppingCartString(str) {
+        $.ajax({
+            type : "POST",
+            url : "/shop/goods/insertShoppingCartStr",
+            data : {"shoppingCartStr" : str},
+            dataType : "json",
+            success : function (result) {
+                getGoodsList();
+            }
+        })
+    }
+
+
+
+
+
+
+
+</script>
+
+</html>
